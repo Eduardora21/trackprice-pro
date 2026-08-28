@@ -1,7 +1,7 @@
 {
   "name": "trackprice-pro",
   "version": "1.0.0",
-  "description": "Monitor de precios de vuelos y envios",
+  "description": "Monitor de precios de vuelos y envíos",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,6 +9,7 @@
   "dependencies": {
     "express": "^4.19.2",
     "axios": "^1.7.2",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "sqlite3": "^5.1.7"
   }
 }
