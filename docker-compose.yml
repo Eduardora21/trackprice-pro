@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  # Servicio Backend (Node.js)
+  app:
+    build: .
+    container_name: trackprice_app
+    restart: always
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+
+  # Proxy Inverso (Nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: trackprice_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
