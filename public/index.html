@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TrackPrice Pro - Dashboard</title>
-  <!-- Tailwind CSS vía CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-6 font-sans">
@@ -14,41 +13,35 @@
     <header class="mb-8 border-b border-slate-800 pb-4 flex justify-between items-center">
       <div>
         <h1 class="text-3xl font-bold text-cyan-400">TrackPrice Pro</h1>
-        <p class="text-slate-400 text-sm">Monitoreo de precios en tiempo real</p>
+        <p class="text-slate-400 text-sm">Monitoreo automático de precios</p>
       </div>
       <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
         ● Servidor Activo
       </span>
     </header>
 
-    <!-- Formulario de Rastrear -->
+    <!-- Formulario Simplificado (Solo Nombre y URL) -->
     <div class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700/50 mb-8">
       <h2 class="text-lg font-semibold mb-4 text-white">Rastrear Nuevo Producto / Vuelo</h2>
-      <form id="trackForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <form id="trackForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <input 
           type="text" 
           id="nombre" 
-          placeholder="Nombre (ej. Vuelo a San José)" 
+          placeholder="Nombre (ej. Vuelo a Cancún)" 
           class="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500 text-white" 
           required
         >
         <input 
           type="url" 
           id="url" 
-          placeholder="URL del sitio web" 
-          class="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500 text-white" 
-          required
-        >
-        <input 
-          type="text" 
-          id="selector" 
-          placeholder="Selector CSS (ej. .price)" 
+          placeholder="URL del sitio web (ej. Amazon, eBay, MercadoLibre)" 
           class="bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-cyan-500 text-white" 
           required
         >
         <button 
           type="submit" 
-          class="md:col-span-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 rounded-lg transition duration-200"
+          id="btnSubmit"
+          class="md:col-span-2 bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 rounded-lg transition duration-200"
         >
           Guardar y Consultar Precio
         </button>
@@ -56,8 +49,109 @@
     </div>
 
     <!-- Contenedor para Estado de la Respuesta -->
-    <div id="resultado" class="hidden p-4 mb-8 rounded-lg bg-slate-800 border border-cyan-500/30 text-sm"></div>
+    <div id="resultado" class="hidden p-4 mb-8 rounded-lg text-sm border"></div>
+
+    <!-- Tabla de Historial -->
+    <div class="bg-slate-800 rounded-xl p-6 shadow-xl border border-slate-700/50">
+      <h2 class="text-lg font-semibold mb-4 text-white">Historial de Registros</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-400">
+          <thead class="bg-slate-900/60 text-slate-200 uppercase text-xs">
+            <tr>
+              <th class="p-3">Producto / Vuelo</th>
+              <th class="p-3">Precio</th>
+              <th class="p-3">Fecha de Registro</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBody" class="divide-y divide-slate-700/50">
+            <tr>
+              <td colspan="3" class="p-4 text-center text-slate-500">Cargando historial...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
   </div>
+
+  <script>
+    const form = document.getElementById('trackForm');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const divResultado = document.getElementById('resultado');
+    const tablaBody = document.getElementById('tablaBody');
+
+    async function cargarHistorial() {
+      try {
+        const res = await fetch('/api/historial');
+        const datos = await res.json();
+
+        if (datos.length === 0) {
+          tablaBody.innerHTML = `
+            <tr>
+              <td colspan="3" class="p-4 text-center text-slate-500">No hay precios registrados todavía.</td>
+            </tr>
+          `;
+          return;
+        }
+
+        tablaBody.innerHTML = datos.map(row => `
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="p-3 font-medium text-white">${row.producto}</td>
+            <td class="p-3 text-cyan-400 font-bold">$${Number(row.precio).toFixed(2)}</td>
+            <td class="p-3 text-slate-400">${new Date(row.fecha).toLocaleString()}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tablaBody.innerHTML = `
+          <tr>
+            <td colspan="3" class="p-4 text-center text-red-400">Error al cargar el historial.</td>
+          </tr>
+        `;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const body = {
+        nombreProducto: document.getElementById('nombre').value,
+        url: document.getElementById('url').value
+      };
+
+      btnSubmit.disabled = true;
+      btnSubmit.innerText = 'Consultando página...';
+      divResultado.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/rastrear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        divResultado.classList.remove('hidden');
+
+        if (data.success) {
+          divResultado.className = 'p-4 mb-8 rounded-lg text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400';
+          divResultado.innerText = `¡Éxito! Se registró ${data.producto} con un precio de $${data.precio.toFixed(2)}`;
+          form.reset();
+          cargarHistorial();
+        } else {
+          divResultado.className = 'p-4 mb-8 rounded-lg text-sm bg-red-500/10 border border-red-500/30 text-red-400';
+          divResultado.innerText = `Error: ${data.error}`;
+        }
+      } catch (err) {
+        divResultado.classList.remove('hidden');
+        divResultado.className = 'p-4 mb-8 rounded-lg text-sm bg-red-500/10 border border-red-500/30 text-red-400';
+        divResultado.innerText = 'Error de conexión con el servidor.';
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerText = 'Guardar y Consultar Precio';
+      }
+    });
+
+    cargarHistorial();
+  </script>
 </body>
 </html>

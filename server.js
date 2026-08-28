@@ -7,7 +7,7 @@ const sqlite3 = require('sqlite3').verbose();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Inicializar base de datos SQLite en un archivo local
+// Inicializar base de datos SQLite
 const db = new sqlite3.Database('precios.db');
 
 // Crear tabla si no existe
@@ -25,13 +25,35 @@ db.serialize(() => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+// Función para detectar automáticamente el selector según el dominio
+function obtenerSelectorAuto(url) {
+  if (url.includes('amazon')) {
+    return '.a-price-whole';
+  }
+  if (url.includes('ebay')) {
+    return '.x-price-primary';
+  }
+  if (url.includes('mercadolibre')) {
+    return '.andes-money-amount__fraction';
+  }
+  if (url.includes('httpbin.org')) {
+    return 'h1';
+  }
+  
+  // Selectores genéricos comunes si no coincide con una tienda conocida
+  return '.price, #price, .precio, [data-price]';
+}
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Endpoint POST: Rastrear y guardar precio
 app.post('/api/rastrear', async (req, res) => {
-  const { nombreProducto, url, selector } = req.body;
+  const { nombreProducto, url } = req.body;
+
+  // Obtener selector automático basado en la URL
+  const selector = obtenerSelectorAuto(url);
 
   try {
     const { data } = await axios.get(url, {
@@ -45,7 +67,10 @@ app.post('/api/rastrear', async (req, res) => {
     const precioNum = parseFloat(textoPrecio.replace(/[^0-9.]/g, ''));
 
     if (isNaN(precioNum)) {
-      return res.status(400).json({ success: false, error: 'No se pudo extraer un número válido con ese selector.' });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No se pudo encontrar un precio válido en esa página web.' 
+      });
     }
 
     const stmt = db.prepare('INSERT INTO historial (producto, precio) VALUES (?, ?)');
